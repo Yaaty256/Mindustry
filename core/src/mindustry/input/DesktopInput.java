@@ -56,7 +56,13 @@ public class DesktopInput extends InputHandler{
     /** Time of most recent control group selection */
     public long lastCtrlGroupSelectMillis;
 
+    /** Time of most recent payload pickup/drop key press*/
+    public long lastPayloadKeyTapMillis;
+    /** Time of most recent payload pickup/drop key hold*/
+    public long lastPayloadKeyHoldMillis;
+
     private float buildPlanMouseOffsetX, buildPlanMouseOffsetY;
+    private boolean changedCursor;
 
     boolean showHint(){
         return ui.hudfrag.shown && Core.settings.getBool("hints") && selectPlans.isEmpty() && !player.dead() &&
@@ -299,7 +305,7 @@ public class DesktopInput extends InputHandler{
                     selectedUnits.set(selectedCommandUnits(Tmp.r1.x, Tmp.r1.y, Tmp.r1.width, Tmp.r1.height));
                 }else {
                     for(var unit : player.team().data().units){
-                        if(unit.allowCommand()){
+                        if(unit.isCommandable()){
                             selectedUnits.add(unit);
                         }
                     }
@@ -315,7 +321,7 @@ public class DesktopInput extends InputHandler{
                     selectedUnits.set(selectedCommandUnits(Tmp.r1.x, Tmp.r1.y, Tmp.r1.width, Tmp.r1.height, u -> u instanceof Payloadc));
                 }else {
                     for(var unit : player.team().data().units){
-                        if(unit.allowCommand() && unit instanceof  Payloadc){
+                        if(unit.isCommandable() && unit instanceof  Payloadc){
                             selectedUnits.add(unit);
                         }
                     }
@@ -326,7 +332,7 @@ public class DesktopInput extends InputHandler{
                 selectedUnits.clear();
                 commandBuildings.clear();
                 for(var build : player.team().data().buildings){
-                    if(build.block.commandable){
+                    if(build.isCommandable()){
                         commandBuildings.add(build);
                     }
                 }
@@ -544,10 +550,15 @@ public class DesktopInput extends InputHandler{
             }
         }
 
-        if(!Core.scene.hasMouse()){
+        if(!Core.scene.hasMouse() && !ui.minimapfrag.shown()){
             Core.graphics.cursor(cursorType);
+            changedCursor = cursorType != SystemCursor.arrow;
         }else{
             cursorType = SystemCursor.arrow;
+            if(changedCursor){
+                graphics.cursor(SystemCursor.arrow);
+                changedCursor = false;
+            }
         }
     }
 
@@ -964,10 +975,26 @@ public class DesktopInput extends InputHandler{
         if(unit instanceof Payloadc){
             if(Core.input.keyTap(Binding.pickupCargo)){
                 tryPickupPayload();
+                lastPayloadKeyTapMillis = Time.millis();
+            }
+
+            if(Core.input.keyDown(Binding.pickupCargo)
+            && Time.timeSinceMillis(lastPayloadKeyHoldMillis) > 20
+            && Time.timeSinceMillis(lastPayloadKeyTapMillis) > 200){
+                tryPickupPayload();
+                lastPayloadKeyHoldMillis = Time.millis();
             }
 
             if(Core.input.keyTap(Binding.dropCargo)){
                 tryDropPayload();
+                lastPayloadKeyTapMillis = Time.millis();
+            }
+
+            if(Core.input.keyDown(Binding.dropCargo)
+            && Time.timeSinceMillis(lastPayloadKeyHoldMillis) > 20
+            && Time.timeSinceMillis(lastPayloadKeyTapMillis) > 200){
+                tryDropPayload();
+                lastPayloadKeyHoldMillis = Time.millis();
             }
         }
     }

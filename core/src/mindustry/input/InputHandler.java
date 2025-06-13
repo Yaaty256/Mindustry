@@ -155,6 +155,8 @@ public abstract class InputHandler implements InputProcessor, GestureListener{
 
         Events.on(ResetEvent.class, e -> {
             logicCutscene = false;
+            commandBuildings.clear();
+            selectedUnits.clear();
             itemDepositCooldown = 0f;
             Arrays.fill(controlGroups, null);
             lastUnit = null;
@@ -264,11 +266,6 @@ public abstract class InputHandler implements InputProcessor, GestureListener{
         for(int id : unitIds){
             Unit unit = Groups.unit.getByID(id);
             if(unit != null && unit.team == player.team()){
-
-                if(unit.controller() instanceof LogicAI){
-                    //reset to commandAI if applicable
-                    unit.resetController();
-                }
 
                 if(unit.controller() instanceof CommandAI ai){
                     //implicitly order it to move
@@ -418,7 +415,7 @@ public abstract class InputHandler implements InputProcessor, GestureListener{
         for(int pos : buildings){
             var build = world.build(pos);
 
-            if(build == null || build.team() != player.team() || !build.block.commandable) continue;
+            if(build == null || build.team() != player.team() || !build.isCommandable()) continue;
 
             build.onCommand(target);
             build.updateLastAccess(player);
@@ -609,7 +606,7 @@ public abstract class InputHandler implements InputProcessor, GestureListener{
 
     @Remote(targets = Loc.client, called = Loc.server)
     public static void dropItem(Player player, float angle){
-        if(player == null) return;
+        if(player == null || player.unit() == null) return;
 
         if(net.server() && player.unit().stack.amount <= 0){
             throw new ValidateException(player, "Player cannot drop an item.");
@@ -844,7 +841,7 @@ public abstract class InputHandler implements InputProcessor, GestureListener{
 
         itemDepositCooldown -= Time.delta / 60f;
 
-        commandBuildings.removeAll(b -> !b.isValid());
+        commandBuildings.removeAll(b -> !b.isValid() || !b.isCommandable() || b.team != player.team());
 
         if(!commandMode){
             commandRect = false;
@@ -1030,7 +1027,7 @@ public abstract class InputHandler implements InputProcessor, GestureListener{
                 //deselect
                 selectedUnits.clear();
 
-                if(build != null && build.team == player.team() && build.block.commandable){
+                if(build != null && build.team == player.team() && build.isCommandable()){
                     if(commandBuildings.contains(build)){
                         commandBuildings.remove(build);
                     }else{
@@ -1334,9 +1331,11 @@ public abstract class InputHandler implements InputProcessor, GestureListener{
         plans.each(plan -> {
             if(plan.breaking) return;
 
+            float off = plan.block.size % 2 == 0 ? -0.5f : 0f;
+
             plan.pointConfig(p -> {
-                int cx = p.x, cy = p.y;
-                int lx = cx;
+                float cx = p.x + off, cy = p.y + off;
+                float lx = cx;
 
                 if(direction >= 0){
                     cx = -cy;
@@ -1345,7 +1344,7 @@ public abstract class InputHandler implements InputProcessor, GestureListener{
                     cx = cy;
                     cy = -lx;
                 }
-                p.set(cx, cy);
+                p.set(Mathf.floor(cx - off), Mathf.floor(cy - off));
             });
 
             //rotate actual plan, centered on its multiblock position
@@ -1379,14 +1378,12 @@ public abstract class InputHandler implements InputProcessor, GestureListener{
             }
 
             plan.pointConfig(p -> {
-                int corigin = x ? plan.originalWidth/2 : plan.originalHeight/2;
-                int nvalue = -(x ? p.x : p.y);
                 if(x){
-                    plan.originalX = -(plan.originalX - corigin) + corigin;
-                    p.x = nvalue;
+                    if(plan.block.size % 2 == 0) p.x --;
+                    p.x = -p.x;
                 }else{
-                    plan.originalY = -(plan.originalY - corigin) + corigin;
-                    p.y = nvalue;
+                    if(plan.block.size % 2 == 0) p.y --;
+                    p.y = -p.y;
                 }
             });
 
@@ -1495,7 +1492,7 @@ public abstract class InputHandler implements InputProcessor, GestureListener{
     }
 
     protected void drawRebuildSelection(int x1, int y1, int x2, int y2){
-        drawSelection(x1, y1, x2, y2, 0, Pal.sapBulletBack, Pal.sapBullet);
+        drawSelection(x1, y1, x2, y2, 0, Pal.sapBulletBack, Pal.sapBullet, false);
 
         NormalizeDrawResult result = Placement.normalizeDrawArea(Blocks.air, x1, y1, x2, y2, false, 0, 1f);
 
@@ -1528,10 +1525,10 @@ public abstract class InputHandler implements InputProcessor, GestureListener{
     }
 
     protected void drawSelection(int x1, int y1, int x2, int y2, int maxLength){
-        drawSelection(x1, y1, x2, y2, maxLength, Pal.accentBack, Pal.accent);
+        drawSelection(x1, y1, x2, y2, maxLength, Pal.accentBack, Pal.accent, true);
     }
 
-    protected void drawSelection(int x1, int y1, int x2, int y2, int maxLength, Color col1, Color col2){
+    protected void drawSelection(int x1, int y1, int x2, int y2, int maxLength, Color col1, Color col2, boolean withText){
         NormalizeDrawResult result = Placement.normalizeDrawArea(Blocks.air, x1, y1, x2, y2, false, maxLength, 1f);
 
         Lines.stroke(2f);
@@ -1541,27 +1538,30 @@ public abstract class InputHandler implements InputProcessor, GestureListener{
         Draw.color(col2);
         Lines.rect(result.x, result.y, result.x2 - result.x, result.y2 - result.y);
 
-        Font font = Fonts.outline;
-        font.setColor(col2);
-        var ints = font.usesIntegerPositions();
-        font.setUseIntegerPositions(false);
-        var z = Draw.z();
-        Draw.z(Layer.endPixeled);
-        font.getData().setScale(1 / renderer.camerascale);
-        var snapToCursor = Core.settings.getBool("selectionsizeoncursor");
-        var textOffset = Core.settings.getInt("selectionsizeoncursoroffset", 5);
-        int width = (int)((result.x2 - result.x) / 8);
-        int height = (int)((result.y2 - result.y) / 8);
-        int area = width * height;
-        // FINISHME: When not snapping to cursor, perhaps it would be best to choose the corner closest to the cursor that's at least a block away?
-        font.draw(width + "x" + height + " (" + area + ")",
-                snapToCursor ? input.mouseWorldX() + textOffset * (4 / renderer.camerascale) : result.x2,
-                snapToCursor ? input.mouseWorldY() - textOffset * (4 / renderer.camerascale) : result.y
-                );
-        font.setColor(Color.white);
-        font.getData().setScale(1);
-        font.setUseIntegerPositions(ints);
-        Draw.z(z);
+        if(withText){
+            Font font = Fonts.outline;
+            font.setColor(col2);
+            var ints = font.usesIntegerPositions();
+            font.setUseIntegerPositions(false);
+            var z = Draw.z();
+            Draw.z(Layer.endPixeled);
+            font.getData().setScale(1 / renderer.camerascale);
+            var snapToCursor = Core.settings.getBool("selectionsizeoncursor");
+            var textOffset = Core.settings.getInt("selectionsizeoncursoroffset", 5);
+            int width = (int)((result.x2 - result.x) / 8);
+            int height = (int)((result.y2 - result.y) / 8);
+            int area = width * height;
+
+            // FINISHME: When not snapping to cursor, perhaps it would be best to choose the corner closest to the cursor that's at least a block away?
+            font.draw(width + "x" + height + " (" + area + ")",
+            snapToCursor ? input.mouseWorldX() + textOffset * (4 / renderer.camerascale) : result.x2,
+            snapToCursor ? input.mouseWorldY() - textOffset * (4 / renderer.camerascale) : result.y
+            );
+            font.setColor(Color.white);
+            font.getData().setScale(1);
+            font.setUseIntegerPositions(ints);
+            Draw.z(z);
+        }
     }
 
     protected void flushSelectPlans(Seq<BuildPlan> plans){
@@ -1747,7 +1747,7 @@ public abstract class InputHandler implements InputProcessor, GestureListener{
         boolean consumed = false, showedInventory = false;
 
         //select building for commanding
-        if(build.block.commandable && commandMode){
+        if(build.isCommandable() && commandMode){
             //TODO handled in tap.
             consumed = true;
         }else if(build.block.configurable && build.interactable(player.team())){ //check if tapped block is configurable
@@ -1943,7 +1943,7 @@ public abstract class InputHandler implements InputProcessor, GestureListener{
         tmpUnits.clear();
         float rad = 4f;
         tree.intersect(x - rad/2f, y - rad/2f, rad, rad, tmpUnits);
-        return tmpUnits.min(u -> u.allowCommand(), u -> u.dst(x, y) - u.hitSize/2f);
+        return tmpUnits.min(u -> u.isCommandable(), u -> u.dst(x, y) - u.hitSize/2f);
     }
 
     public @Nullable Unit selectedEnemyUnit(float x, float y){
@@ -1965,7 +1965,7 @@ public abstract class InputHandler implements InputProcessor, GestureListener{
         tmpUnits.clear();
         float rad = 4f;
         tree.intersect(Tmp.r1.set(x - rad/2f, y - rad/2f, rad*2f + w, rad*2f + h).normalize(), tmpUnits);
-        tmpUnits.removeAll(u -> !u.allowCommand() || !predicate.get(u));
+        tmpUnits.removeAll(u -> !u.isCommandable() || !predicate.get(u));
         return tmpUnits;
     }
 
