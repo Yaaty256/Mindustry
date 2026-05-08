@@ -21,7 +21,7 @@ public class LiquidTurret extends Turret{
     public LiquidTurret(String name){
         super(name);
         hasLiquids = true;
-        loopSound = Sounds.spray;
+        loopSound = Sounds.loopSpray;
         shootSound = Sounds.none;
         smokeEffect = Fx.none;
         shootEffect = Fx.none;
@@ -54,7 +54,9 @@ public class LiquidTurret extends Turret{
             }
         });
 
-        ammoTypes.each((item, type) -> placeOverlapRange = Math.max(placeOverlapRange, range + type.rangeChange + placeOverlapMargin));
+        if(targetGround){
+            ammoTypes.each((item, type) -> placeOverlapRange = Math.max(placeOverlapRange, range + type.rangeChange + placeOverlapMargin));
+        }
 
         super.init();
     }
@@ -67,10 +69,8 @@ public class LiquidTurret extends Turret{
         }
 
         @Override
-        public void updateTile(){
-            unit.ammo(unit.type().ammoCapacity * liquids.currentAmount() / liquidCapacity);
-
-            super.updateTile();
+        public float getAmmoFraction(){
+            return liquids.currentAmount() / liquidCapacity;
         }
 
         @Override
