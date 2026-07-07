@@ -488,12 +488,9 @@ public class PlacementFragment{
                         var stances = new Seq<UnitStance>();
                         var stancesOut = new Seq<UnitStance>();
 
-                        int[][] countBox = new int[1][0];
+                        int[] counts = new int[content.units().size];
 
                         rebuildCommand = () -> {
-                            if(countBox[0].length != content.units().size) countBox[0] = new int[content.units().size];
-                            int[] counts = countBox[0];
-
                             u.clearChildren();
                             var units = control.input.selectedUnits;
                             if(units.size > 0){
@@ -612,8 +609,6 @@ public class PlacementFragment{
 
                         u.update(() -> {
                             {
-                                if(countBox[0].length != content.units().size) countBox[0] = new int[content.units().size];
-                                int[] counts = countBox[0];
                                 activeCommands.clear();
                                 activeStances.clear();
                                 availableCommands.clear();
@@ -788,9 +783,9 @@ public class PlacementFragment{
 
         //check tile being hovered over
         Tile hoverTile = world.tileWorld(Core.input.mouseWorld().x, Core.input.mouseWorld().y);
-        if(hoverTile != null && hoverTile.inMapArea()){
+        if(hoverTile != null){
             //if the tile has a building, display it
-            if(hoverTile.build != null && hoverTile.build.displayable() && !hoverTile.build.inFogTo(player.team()) && hoverTile.build.inMapArea()){
+            if(hoverTile.build != null && hoverTile.build.displayable() && !hoverTile.build.inFogTo(player.team())){
                 return nextFlowBuild = hoverTile.build;
             }
 

@@ -450,14 +450,6 @@ public class Saves{
             Core.settings.put("save-" + index() + "-autosave", save);
         }
 
-        public boolean isBeingPlayed(){
-            return getCurrent() == this;
-        }
-
-        public boolean hasExternalAssets(){
-            return meta.tags.getBool("hasExternalAssets");
-        }
-
         public void importFile(Fi from) throws IOException{
             try{
                 from.copyTo(file);
@@ -472,13 +464,7 @@ public class Saves{
 
         public void exportFile(Fi to) throws IOException{
             try{
-                if(isBeingPlayed() && hasExternalAssets()){
-                    SaveIO.write(to, new SaveOptions(){{
-                        embedAssets = true;
-                    }});
-                }else{
-                    file.copyTo(to);
-                }
+                file.copyTo(to);
             }catch(Exception e){
                 throw new IOException(e);
             }

@@ -3,10 +3,8 @@ package mindustry.ctype;
 import arc.files.*;
 import arc.util.*;
 import mindustry.*;
-import mindustry.annotations.Annotations.*;
-import mindustry.mod.Mods.*;
 import mindustry.mod.*;
-import mindustry.mod.data.*;
+import mindustry.mod.Mods.*;
 
 /** Base class for a content type that is loaded in {@link mindustry.core.ContentLoader}. */
 @NoPatch
@@ -14,8 +12,6 @@ public abstract class Content implements Comparable<Content>{
     public short id;
     /** Info on which mod this content was loaded from. */
     public ModContentInfo minfo = new ModContentInfo();
-    /** If true, this content is invalid (added in a data patch and then removed). */
-    public boolean removed;
 
     public Content(){
         this.id = (short)Vars.content.getBy(getContentType()).size;
@@ -27,10 +23,6 @@ public abstract class Content implements Comparable<Content>{
      * This should return the same value for all instances of this content type.
      */
     public abstract ContentType getContentType();
-
-    /** Called when this content is removed in a data patch. */
-    @CallSuper
-    public void removeContent(){}
 
     /** Called after all content and modules are created. Do not use to load regions or texture data! */
     public void init(){}
@@ -65,11 +57,6 @@ public abstract class Content implements Comparable<Content>{
         return !isVanilla();
     }
 
-    /** @return whether this content is from a map data patch. */
-    public boolean isPatchContent(){
-        return minfo.mod == DataPatcher.dpMod;
-    }
-
     @Override
     public int compareTo(Content c){
         return Integer.compare(id, c.id);
@@ -89,7 +76,5 @@ public abstract class Content implements Comparable<Content>{
         public @Nullable String error;
         /** Base throwable that caused the error. */
         public @Nullable Throwable baseError;
-        /** If this was loaded as part of a save, this is the associated content asset. Null for mods. */
-        public @Nullable ContentAsset asset;
     }
 }

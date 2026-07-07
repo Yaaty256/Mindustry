@@ -33,7 +33,6 @@ public class TileableLogicDisplay extends LogicDisplay{
         super(name);
 
         displaySize = 32;
-        allowRectanglePlacement = true;
     }
 
     public static void linkDisplays(TileableLogicDisplayBuild start){
@@ -83,12 +82,10 @@ public class TileableLogicDisplay extends LogicDisplay{
         }
 
         int tilesWidth = topX - botX + 1, tilesHeight = topY - botY + 1;
-        boolean rectangular = tilesWidth * tilesHeight == displays.size;
 
         //the new root display has been assigned
         for(var member : displays){
             member.needsUpdate = false;
-            member.rectangular = rectangular;
             member.rootDisplay = root;
             member.tilesWidth = tilesWidth;
             member.tilesHeight = tilesHeight;
@@ -127,12 +124,7 @@ public class TileableLogicDisplay extends LogicDisplay{
         public @Nullable Seq<MergeBuffer> prevBuffers;
 
         public int bits = 0;
-        public boolean needsUpdate = false, rectangular = false;
-        public long frameId = -1;
-
-        //some JVM may allocate a new instance of Runnable each time the lambda is constructed in the code
-        private final Runnable drawFull = this::drawFull;
-        private final Runnable drawTile = this::drawTile;
+        public boolean needsUpdate = false;
 
         @Override
         public double sense(LAccess sensor){
@@ -167,95 +159,83 @@ public class TileableLogicDisplay extends LogicDisplay{
         }
 
         @Override
+        public void getBufferRegion(TextureRegion region){
+            if(buffer != null){
+                region.set(buffer.getTexture(), 0, buffer.getTexture().height - frameSize*2, buffer.getTexture().width - frameSize*2, -(buffer.getTexture().height - frameSize*2));
+            }
+        }
+
+        @Override
         public void draw(){
-            //don't even bother processing anything when displays are off.
-            if(!Vars.renderer.drawDisplays) {
-                Draw.rect(backRegion, x, y);
-                Draw.rect(tileRegion[TileBitmask.values[bits]], x, y);
-                return;
+            //TODO if this is called before draw() on the root display is called, it will wipe it
+            if(needsUpdate){
+                needsUpdate = false;
+                linkDisplays(this);
             }
 
-            TileableLogicDisplayBuild root = (TileableLogicDisplayBuild)rootDisplay;
+            Draw.rect(backRegion, x, y);
 
-            if(root.buffer == null && tilesWidth <= maxDisplayDimensions && tilesHeight <= maxDisplayDimensions){
+            //don't even bother processing anything when displays are off.
+            if(!Vars.renderer.drawDisplays) return;
+
+            if(isRoot()){
                 Draw.draw(Draw.z(), () -> {
-                    if(root.buffer == null){
-                        root.buffer = new FrameBuffer(32 * tilesWidth - 2 * frameSize, 32 * tilesHeight - 2 * frameSize);
+                    if(buffer == null && tilesWidth <= maxDisplayDimensions && tilesHeight <= maxDisplayDimensions){
+                        buffer = new FrameBuffer(32 * tilesWidth, 32 * tilesHeight);
 
                         Tmp.m1.set(Draw.proj());
                         Tmp.m2.set(Draw.trans());
-                        Draw.proj(0, 0, root.buffer.getWidth(), root.buffer.getHeight());
+                        Draw.proj(0, 0, buffer.getWidth(), buffer.getHeight());
 
                         //clear the buffer - some OSs leave garbage in it
-                        root.buffer.begin(backgroundColor);
-                        if(root.prevBuffers != null){
-                            for(var other : root.prevBuffers){
-                                Draw.rect(Draw.wrap(other.buffer.getTexture()), (other.x - originX) * 32 + other.buffer.getWidth() / 2f, (other.y - originY) * 32 + other.buffer.getHeight() / 2f, other.buffer.getWidth(), -other.buffer.getHeight());
+                        buffer.begin(Pal.darkerMetal);
+                        if(prevBuffers != null){
+                            for(var other : prevBuffers){
+                                Draw.rect(Draw.wrap(other.buffer.getTexture()), (other.x - originX) * 32 + other.buffer.getWidth()/2f, (other.y - originY) * 32 + other.buffer.getHeight()/2f, other.buffer.getWidth(), -other.buffer.getHeight());
                                 Draw.flush();
                             }
                         }
 
-                        root.buffer.end();
+                        buffer.end();
                         Draw.proj(Tmp.m1);
                         Draw.trans(Tmp.m2);
                         Draw.reset();
                     }
 
-                    if(root.prevBuffers != null){
-                        for(var other : root.prevBuffers){
+                    if(prevBuffers != null){
+                        for(var other : prevBuffers){
                             if(!other.buffer.isDisposed()){
                                 other.buffer.dispose();
                             }
                         }
-                        root.prevBuffers.clear();
+                        prevBuffers.clear();
                     }
                 });
             }
 
-            root.processCommands();
+            rootDisplay.processCommands();
 
-            float offset = 0.001f + (root.buffer == null ? 0f : (root.buffer.hashCode() % 1_000_000) / 1_000_000f * 0.01f);
+            float offset = 0.001f + (rootDisplay.buffer == null ? 0f : (rootDisplay.buffer.hashCode() % 1_000_000) / 1_000_000f * 0.01f);
 
             Draw.z(Layer.block + offset);
 
-            if(rectangular && root.buffer != null){
-                //the first tile to be processed in this frame draws the entire buffer at once
-                if(root.frameId != Core.graphics.getFrameId()){
-                    root.frameId = Core.graphics.getFrameId();
-                    Draw.blend(Blending.disabled);
-                    Draw.draw(Draw.z(), drawFull);
-                    Draw.blend();
+            //TODO: for square regions, this can be optimized to draw only one thing
+            Draw.blend(Blending.disabled);
+            Draw.draw(Draw.z(), () -> {
+                if(rootDisplay.buffer != null){
+
+                    int rtx = (tile.x - originX), rty = (tile.y - originY);
+
+                    // Offset the region to account for display frame (6 pixels)
+                    Tmp.tr1.set(rootDisplay.buffer.getTexture(), rtx * 32 - frameSize, rty * 32 - frameSize, 32, 32);
+                    Draw.rect(Tmp.tr1, x, y, tilesize, -tilesize);
                 }
-            }else{
-                Draw.blend(Blending.disabled);
-                Draw.draw(Draw.z(), drawTile);
-                Draw.blend();
-            }
+            });
+            Draw.blend();
 
-            if(bits != 255){
-                Draw.z(Layer.block + 0.02f);
-                Draw.rect(tileRegion[TileBitmask.values[bits]], x, y);
-            }
-        }
+            Draw.z(Layer.block + 0.02f);
 
-        private void drawFull() {
-            if(rootDisplay.buffer != null){
-                float cx = x + tilesize * (tilesWidth - 1 - 2 * (tile.x - originX)) / 2f, cy = y + tilesize * (tilesHeight - 1 - 2 * (tile.y - originY)) / 2f;
-                Draw.rect(Draw.wrap(rootDisplay.buffer.getTexture()), cx, cy,
-                rootDisplay.buffer.getWidth() * scaleFactor * Draw.scl, -rootDisplay.buffer.getHeight() * scaleFactor * Draw.scl);
-            }
-        }
-
-        private void drawTile() {
-            if(rootDisplay.buffer != null){
-                int rtx = (tile.x - originX), rty = (tile.y - originY);
-
-                // Offset the region to account for the display frame (6 pixels)
-                Tmp.tr1.set(rootDisplay.buffer.getTexture(), rtx * 32 - frameSize, rty * 32 - frameSize, 32, 32);
-                Draw.rect(Tmp.tr1, x, y, tilesize, -tilesize);
-            }else{
-                Draw.rect(backRegion, x, y);
-            }
+            Draw.rect(tileRegion[TileBitmask.values[bits]], x, y);
         }
 
         @Override
@@ -273,13 +253,6 @@ public class TileableLogicDisplay extends LogicDisplay{
                 if(other != null && other.block() == block && other.team() == team){
                     other.build.onProximityUpdate();
                 }
-            }
-        }
-
-        public void updateTile() {
-            if(needsUpdate){
-                needsUpdate = false;
-                linkDisplays(this);
             }
         }
 

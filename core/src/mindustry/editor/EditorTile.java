@@ -188,7 +188,7 @@ public class EditorTile extends Tile{
     }
 
     private void updateStatic(){
-        if(!headless) editor.renderer.updateStatic(x, y);
+        editor.renderer.updateStatic(x, y);
     }
 
     private boolean skip(){

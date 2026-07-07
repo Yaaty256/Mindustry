@@ -54,7 +54,7 @@ public class WorldReloader{
                 if(state.rules.pvp){
                     p.team(netServer.assignTeam(p, new SeqIterable<>(players)));
                 }
-                netServer.sendWorldAndAssets(p);
+                netServer.sendWorldData(p);
             }
         }
     }

@@ -213,9 +213,9 @@ abstract class UnitComp implements Healthc, Physicsc, Hitboxc, Statusc, Teamc, I
 
     @Override
     @Replace
-    public boolean isSyncHidden(Team team){
+    public boolean isSyncHidden(Player player){
         //shooting reveals position so bullets can be seen
-        return !isShooting() && inFogTo(team);
+        return !isShooting() && inFogTo(player.team());
     }
 
     @Override
@@ -269,7 +269,6 @@ abstract class UnitComp implements Healthc, Physicsc, Hitboxc, Statusc, Teamc, I
             case health -> health;
             case shield -> shield;
             case maxHealth -> maxHealth;
-            case flying -> isFlying() ? 1f : 0f;
             case x -> World.conv(x);
             case y -> World.conv(y);
             case velocityX -> vel.x * 60f / tilesize;
@@ -537,14 +536,10 @@ abstract class UnitComp implements Healthc, Physicsc, Hitboxc, Statusc, Teamc, I
         this.hitSize = type.hitSize;
 
         if(mounts().length != type.weapons.size) setupWeapons(type);
-        if(abilities.length != type.abilities.size || (abilities.length > 0 && abilities[0] instanceof EmptyDataAbility)){
-            var old = abilities;
+        if(abilities.length != type.abilities.size){
             abilities = new Ability[type.abilities.size];
             for(int i = 0; i < type.abilities.size; i ++){
                 abilities[i] = type.abilities.get(i).copy();
-                if(i < old.length){
-                    abilities[i].data = old[i].data;
-                }
             }
         }
         if(controller == null) controller(type.createController(self()));

@@ -172,7 +172,7 @@ public class StatusEffect extends UnlockableContent{
 
     }
 
-    public void trans(StatusEffect effect, TransitionHandler handler){
+    protected void trans(StatusEffect effect, TransitionHandler handler){
         transitions.put(effect, handler);
     }
 

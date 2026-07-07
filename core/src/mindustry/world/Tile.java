@@ -159,10 +159,6 @@ public class Tile implements Position, QuadTreeObject, Displayable{
         return 0;
     }
 
-    public boolean inMapArea(){
-        return !state.rules.limitMapArea || Rect.contains(state.rules.limitX , state.rules.limitY , state.rules.limitWidth, state.rules.limitHeight, x, y);
-    }
-
     public float worldx(){
         return x * tilesize;
     }
@@ -810,56 +806,38 @@ public class Tile implements Position, QuadTreeObject, Displayable{
         if(positions == null) return;
 
         staleGraphs.clear();
-        tileSet.clear();
 
         for(int pos : positions){
             var build = world.build(pos);
             if(build != null){
-                var power = build.power;
                 if(build.power != null){
                     staleGraphs.add(build.power.graph.getID());
-
-                    for(int i = 0; i < power.links.size; i++){
-                        var other = world.build(power.links.items[i]);
-                        if(other != null && other.power != null){
-                            tileSet.add(other);
-                            staleGraphs.add(other.power.graph.getID());
-                        }
-                    }
                 }
                 build.changeTeam(team, false);
             }
         }
 
-        for(var external : tileSet){
-            reflowPower(team, external);
-        }
-
         //update power graphs in a second pass
         for(int pos : positions){
             var build = world.build(pos);
-            reflowPower(team, build);
-        }
-    }
+            if(build != null && build.power != null && staleGraphs.contains(build.power.graph.getID())){
+                for(int i = 0; i < build.power.links.size; i++){
+                    var other = world.build(build.power.links.items[i]);
 
-    private static void reflowPower(Team team, Building build){
-        if(build != null && build.power != null && staleGraphs.contains(build.power.graph.getID())){
-            for(int i = 0; i < build.power.links.size; i++){
-                var other = world.build(build.power.links.items[i]);
+                    //only reflow links that were connected to the old power graph; ones that have a new one were already covered.
+                    if(other != null && other.team != team && other.power != null && staleGraphs.contains(other.power.graph.getID())){
+                        build.power.links.removeIndex(i);
+                        other.power.links.removeValue(build.pos());
 
-                //only reflow links that were connected to the old power graph; ones that have a new one were already covered.
-                if(other != null && other.team != team && other.power != null && staleGraphs.contains(other.power.graph.getID())){
-                    build.power.links.removeIndex(i);
-                    other.power.links.removeValue(build.pos());
+                        new PowerGraph().reflow(other);
 
-                    new PowerGraph().reflow(other);
-
-                    i --;
+                        i --;
+                    }
                 }
-            }
-            new PowerGraph().reflow(build);
+                new PowerGraph().reflow(build);
 
-            build.updatePowerGraph();
+                build.updatePowerGraph();
+            }
         }
     }
 

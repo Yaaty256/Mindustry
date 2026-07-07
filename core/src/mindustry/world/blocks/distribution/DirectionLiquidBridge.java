@@ -25,8 +25,8 @@ public class DirectionLiquidBridge extends DirectionBridge{
         canOverdrive = false;
         liquidCapacity = 20f;
         hasLiquids = true;
-        regionRotated1 = 2;
     }
+
 
     @Override
     public TextureRegion[] icons(){
@@ -36,19 +36,16 @@ public class DirectionLiquidBridge extends DirectionBridge{
     public class DuctBridgeBuild extends DirectionBridgeBuild{
 
         @Override
-        public void drawCached(){
-            Draw.rect(bottomRegion, x, y);
-        }
-
-        @Override
         public void draw(){
+            Draw.rect(bottomRegion, x, y);
+
             if(liquids.currentAmount() > 0.001f){
                 LiquidBlock.drawTiledFrames(size, x, y, liquidPadding, liquids.current(), liquids.currentAmount() / liquidCapacity);
             }
 
             Draw.rect(block.region, x, y);
-            Draw.rect(dirRegion, x, y, rotdeg());
 
+            Draw.rect(dirRegion, x, y, rotdeg());
             var link = findLink();
             if(link != null){
                 Draw.z(Layer.power - 1);

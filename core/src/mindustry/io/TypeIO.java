@@ -314,12 +314,6 @@ public class TypeIO{
 
     public static Ability[] readAbilities(Reads read, Ability[] abilities){
         byte len = read.b();
-
-        if(len != abilities.length){
-            abilities = new Ability[len];
-            for(int i = 0; i < len; i++) abilities[i] = new EmptyDataAbility();
-        }
-
         for(int i = 0; i < len; i++){
             float data = read.f();
             if(abilities.length > i){
@@ -525,7 +519,7 @@ public class TypeIO{
     public static Queue<BuildPlan> readPlansQueue(Reads read){
         int used = read.i();
         if(used == -1) return null;
-        //this is ONLY used in saves, so don't enforce a max size, it can be anything.
+        if(used >= maxArraySize) throw new RuntimeException("Queue too long: " + used);
         var out = new Queue<BuildPlan>();
         for(int i = 0; i < used; i++){
             out.add(readPlan(read));
@@ -630,7 +624,6 @@ public class TypeIO{
             int x = read.us();
             int y = read.us();
             Block block = Vars.content.block(read.us());
-            if(block == null) throw new ArcRuntimeException("Invalid block ID in block plans! Client is likely using an incorrectly configured mod.");
             int rotation = (block.rotate ? read.b() : 0);
             Object config = readClientPlanConfig(read);
             BuildPlan plan = new BuildPlan(x, y, rotation, block, config);
@@ -1185,22 +1178,6 @@ public class TypeIO{
         int[] out = new int[length];
         for(int i = 0; i < length; i++){
             out[i] = read.i();
-        }
-        return out;
-    }
-
-    public static void writeShorts(Writes write, short[] ints){
-        write.s((short)ints.length);
-        for(short i : ints){
-            write.s(i);
-        }
-    }
-
-    public static short[] readShorts(Reads read){
-        short length = read.s();
-        short[] out = new short[length];
-        for(int i = 0; i < length; i++){
-            out[i] = read.s();
         }
         return out;
     }

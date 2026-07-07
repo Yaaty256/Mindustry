@@ -22,8 +22,6 @@ import static mindustry.Vars.*;
 
 @SuppressWarnings("unchecked")
 public class Net{
-    public static final int packetIdAssetStream, packetIdWorldStream;
-
     private static Seq<Prov<? extends Packet>> packetProvs = new Seq<>();
     private static Seq<Class<? extends Packet>> packetClasses = new Seq<>();
     private static ObjectIntMap<Class<?>> packetToId = new ObjectIntMap<>();
@@ -46,27 +44,19 @@ public class Net{
     static{
         registerPacket(StreamBegin::new);
         registerPacket(StreamChunk::new);
-        packetIdWorldStream = registerPacket(WorldStream::new);
+        registerPacket(WorldStream::new);
         registerPacket(ConnectPacket::new);
-        registerPacket(AssetRequirementStream::new);
-        packetIdAssetStream = registerPacket(AssetStream::new);
 
         //register generated packet classes
         Call.registerPackets();
     }
 
     /** Registers a new packet type for serialization. */
-    public static <T extends Packet> int registerPacket(Prov<T> cons){
-        int id = packetProvs.size;
+    public static <T extends Packet> void registerPacket(Prov<T> cons){
         packetProvs.add(cons);
         var t = cons.get();
         packetClasses.add(t.getClass());
-        packetToId.put(t.getClass(), id);
-        return id;
-    }
-
-    public static byte getPacketClassId(Class<?> c){
-        return (byte)packetToId.get(c, -1);
+        packetToId.put(t.getClass(), packetProvs.size - 1);
     }
 
     public static byte getPacketId(Packet packet){
@@ -166,9 +156,6 @@ public class Net{
      * Connect to an address.
      */
     public void connect(String ip, int port, Runnable success){
-        streams.clear();
-        currentStream = null;
-
         try{
             if(!active){
                 Events.fire(new ClientServerConnectEvent(ip, port));
@@ -219,10 +206,6 @@ public class Net{
         provider.disconnectClient();
         server = false;
         active = false;
-        for(var stream : streams){
-            stream.value.close();
-        }
-        currentStream = null;
     }
 
     /**
@@ -243,20 +226,21 @@ public class Net{
     /** Send an object to all connected clients, or to the server if this is a client.*/
     public void send(Object object, boolean reliable){
         if(server){
-            provider.sendAllServer(object, reliable);
+            for(NetConnection con : provider.getConnections()){
+                con.send(object, reliable);
+            }
         }else{
             provider.sendClient(object, reliable);
         }
     }
 
-    /** Server bulk-send to several clients. */
-    public void send(Object object, Iterable<NetConnection> connections, boolean reliable){
-        provider.sendAllServer(object, connections, reliable);
-    }
-
     /** Send an object to everyone EXCEPT a certain client. Server-side only.*/
     public void sendExcept(NetConnection except, Object object, boolean reliable){
-        provider.sendExceptServer(except, object, reliable);
+        for(NetConnection con : getConnections()){
+            if(con != except){
+                con.send(object, reliable);
+            }
+        }
     }
 
     public @Nullable StreamBuilder getCurrentStream(){
@@ -288,11 +272,7 @@ public class Net{
         object.handled();
 
         if(object instanceof StreamBegin b){
-            streams.put(b.id, currentStream = new StreamBuilder(b, ((Streamable)Net.newPacket(b.type)).incremental()));
-            b.incrementalStream = currentStream.incrementalStream;
-
-            var listeners = clientListeners.get(StreamBegin.class);
-            if(listeners != null) listeners.get(object);
+            streams.put(b.id, currentStream = new StreamBuilder(b));
 
         }else if(object instanceof StreamChunk c){
             StreamBuilder builder = streams.get(c.id);
@@ -301,22 +281,14 @@ public class Net{
             }
             builder.add(c.data);
 
-            if(ui.loadfrag.showingProgress()){
-                ui.loadfrag.setProgress(builder.progress());
-                ui.loadfrag.snapProgress();
-            }
-
+            ui.loadfrag.setProgress(builder.progress());
+            ui.loadfrag.snapProgress();
             netClient.resetTimeout();
 
             if(builder.isDone()){
                 streams.remove(builder.id);
-                //incremental streams don't send an event as the data gets handled as it comes in
-                if(!builder.incremental){
-                    handleClientReceived(builder.build());
-                    currentStream = null;
-                }else{
-                    builder.incrementalStream.finish();
-                }
+                handleClientReceived(builder.build());
+                currentStream = null;
             }
         }else{
             int p = object.getPriority();
@@ -412,30 +384,6 @@ public class Net{
 
     /** Networking implementation. */
     public interface NetProvider{
-
-        /** Sends a packet to a specific list of clients. */
-        default void sendAllServer(Object object, Iterable<NetConnection> connections, boolean reliable){
-            for(NetConnection con : connections){
-                con.send(object, reliable);
-            }
-        }
-
-        /** Sends a packet to all connected clients. */
-        default void sendAllServer(Object object, boolean reliable){
-            for(NetConnection con : getConnections()){
-                con.send(object, reliable);
-            }
-        }
-
-        /** Sends a packet to all connected clients, except the specified one. */
-        default void sendExceptServer(NetConnection except, Object object, boolean reliable){
-            for(NetConnection con : getConnections()){
-                if(con != except){
-                    con.send(object, reliable);
-                }
-            }
-        }
-
         /** Connect to a server. */
         void connectClient(String ip, int port, Runnable success) throws IOException;
 

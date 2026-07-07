@@ -28,7 +28,7 @@ public class Thruster extends Wall{
     public class ThrusterBuild extends WallBuild{
 
         @Override
-        public void drawCached(){
+        public void draw(){
             Draw.rect(block.region, x, y);
             Draw.rect(topRegion, x, y, rotdeg());
         }

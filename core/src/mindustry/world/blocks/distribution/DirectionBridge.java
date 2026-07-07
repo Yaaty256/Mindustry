@@ -42,7 +42,6 @@ public class DirectionBridge extends Block{
         drawArrow = false;
         allowDiagonal = false;
         regionRotated1 = 1;
-        drawCached = true;
     }
 
     @Override
@@ -185,11 +184,8 @@ public class DirectionBridge extends Block{
         }
         Draw.alpha(Renderer.bridgeOpacity);
 
-        if(Lod.l1){
-            Draw.alpha(Lod.alpha1);
-            for(float i = 6f; i <= len + size * tilesize - 5f; i += 5f){
-                Draw.rect(arrowRegion, x1 + Geometry.d4x(rotation) * i, y1 + Geometry.d4y(rotation) * i, angle);
-            }
+        for(float i = 6f; i <= len + size * tilesize - 5f; i += 5f){
+            Draw.rect(arrowRegion, x1 + Geometry.d4x(rotation) * i, y1 + Geometry.d4y(rotation) * i, angle);
         }
 
         Draw.reset();
@@ -210,13 +206,9 @@ public class DirectionBridge extends Block{
         public @Nullable DirectionBridgeBuild lastLink;
 
         @Override
-        public void drawCached(){
+        public void draw(){
             Draw.rect(block.region, x, y);
             Draw.rect(dirRegion, x, y, rotdeg());
-        }
-
-        @Override
-        public void draw(){
             var link = findLink();
             if(link != null){
                 Draw.z(Layer.power - 1);

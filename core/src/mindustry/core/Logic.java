@@ -103,12 +103,11 @@ public class Logic implements ApplicationListener{
 
             if(state.isCampaign()){
                 //enable building AI on campaign unless the preset disables it
+
                 state.rules.coreIncinerates = true;
                 state.rules.infiniteResources = false;
                 state.rules.allowEditRules = false;
                 state.rules.allowEditWorldProcessors = false;
-                state.rules.worldProcessorPlayerLink = false;
-
                 if(state.getPlanet().enemyInfiniteItems){
                     state.rules.waveTeam.rules().infiniteResources = true;
                     state.rules.waveTeam.rules().fillItems = true;
@@ -297,17 +296,17 @@ public class Logic implements ApplicationListener{
     }
 
     public void reset(){
-        Groups.clear();
-        Time.clear();
-        Events.fire(new ResetEvent());
-        world.tiles = new Tiles(0, 0);
-
-        state.data.unload();
         State prev = state.getState();
+        state.patcher.unapply();
         //recreate gamestate - sets state to menu
         state = new GameState();
         //fire change event, since it was technically changed
         Events.fire(new StateChangeEvent(prev, State.menu));
+
+        Groups.clear();
+        Time.clear();
+        Events.fire(new ResetEvent());
+        world.tiles = new Tiles(0, 0);
 
         Core.settings.manualSave();
     }
@@ -460,43 +459,10 @@ public class Logic implements ApplicationListener{
         Core.settings.manualSave();
     }
 
-    protected void updateEntities(){
-        PerfCounter.entityUpdate.begin();
-
-        PerfCounter.entityMisc.begin();
-        Groups.updatePooling();
-        Groups.bullet.updatePhysics();
-        Groups.unit.updatePhysics();
-        Groups.all.update();
-        PerfCounter.entityMisc.end();
-
-        PerfCounter.unitUpdate.begin();
-        Groups.unit.update();
-        PerfCounter.unitUpdate.end();
-
-        PerfCounter.powerUpdate.begin();
-        if(!state.isEditor()) Groups.powerGraph.update();
-        PerfCounter.powerUpdate.end();
-
-        PerfCounter.buildingUpdate.begin();
-        if(!state.isEditor()) Groups.build.update();
-        PerfCounter.buildingUpdate.end();
-
-        PerfCounter.bulletUpdate.begin();
-        Groups.bullet.update();
-
-        Groups.bullet.collide();
-        PerfCounter.bulletUpdate.end();
-
-        PerfCounter.entityUpdate.end();
-    }
-
     @Override
     public void update(){
         PerfCounter.frame.end();
         PerfCounter.frame.begin();
-
-        PerfCounter.stateUpdate.begin();
 
         Events.fire(Trigger.update);
         universe.updateGlobal();
@@ -597,7 +563,9 @@ public class Logic implements ApplicationListener{
                 state.envAttrs.add(state.rules.attributes);
                 Groups.weather.each(w -> state.envAttrs.add(w.weather.attrs, w.opacity));
 
-                updateEntities();
+                PerfCounter.entityUpdate.begin();
+                Groups.update();
+                PerfCounter.entityUpdate.end();
 
                 Events.fire(Trigger.afterGameUpdate);
             }
@@ -608,8 +576,6 @@ public class Logic implements ApplicationListener{
         }else if(netServer.isWaitingForPlayers() && runStateCheck){
             checkGameState();
         }
-
-        PerfCounter.stateUpdate.end(PerfCounter.entityUpdate.latestValueNs());
     }
 
     /** @return whether the wave timer is paused due to enemies */

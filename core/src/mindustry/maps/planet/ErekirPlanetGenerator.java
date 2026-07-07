@@ -429,6 +429,6 @@ public class ErekirPlanetGenerator extends PlanetGenerator{
 
         //all sectors are wave sectors
         state.rules.waves = false;
-        state.rules.hideSpawns = false;
+        state.rules.showSpawns = true;
     }
 }

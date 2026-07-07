@@ -1,13 +1,11 @@
 package mindustry.logic;
 
 import arc.*;
-import arc.audio.*;
 import arc.func.*;
 import arc.graphics.*;
 import arc.scene.style.*;
 import arc.scene.ui.*;
 import arc.scene.ui.layout.*;
-import arc.struct.*;
 import arc.util.*;
 import mindustry.*;
 import mindustry.annotations.Annotations.*;
@@ -70,7 +68,7 @@ public class LStatements{
 
             table.add(" = ");
 
-            field(table, target, str -> target = str);
+            fields(table, target, str -> target = str);
 
             row(table);
 
@@ -102,7 +100,7 @@ public class LStatements{
 
             table.add(" to ");
 
-            field(table, target, str -> target = str);
+            fields(table, target, str -> target = str);
 
             row(table);
 
@@ -1576,7 +1574,7 @@ public class LStatements{
             }).size(80f, 40f).pad(4f).color(table.color);
 
             if(statusNames == null){
-                statusNames = content.statusEffects().map(s -> s.name).toArray(String.class);
+                statusNames = content.statusEffects().select(s -> !s.isHidden()).map(s -> s.name).toArray(String.class);
             }
 
             table.button(b -> {
@@ -2372,11 +2370,15 @@ public class LStatements{
 
         @Override
         public void build(Table table){
+            rebuild(table);
+        }
+
+        void rebuild(Table table){
             table.clearChildren();
 
             table.button(positional ? "positional" : "global", Styles.logict, () -> {
                 positional = !positional;
-                build(table);
+                rebuild(table);
             }).size(160f, 40f).pad(4f).color(table.color);
 
             row(table);
@@ -2386,20 +2388,11 @@ public class LStatements{
             table.button(b -> {
                 b.image(Icon.pencilSmall);
 
-                Seq<String> soundNames = new Seq<>();
-
-                for(var entry : Core.assets.getAllEntries(Sound.class, new Seq<>())){
-                    if(entry.value != Sounds.none && entry.value.file != null){
-                        soundNames.add(Strings.getFileNameWithoutExtension(entry.key));
-                    }
-                }
-                soundNames.sort();
-
                 String soundName = id.startsWith("@sfx-") ? id.substring(5) : id;
-                b.clicked(() -> showSelect(b, soundNames.toArray(String.class), soundName, t -> {
+                b.clicked(() -> showSelect(b, GlobalVars.soundNames.toArray(String.class), soundName, t -> {
                     id = "@sfx-" + t;
-                    build(table);
-                }, 3, cell -> cell.size(170, 50)));
+                    rebuild(table);
+                }, 2, cell -> cell.size(160, 50)));
             }, Styles.logict, () -> {}).size(40).color(table.color).left().padLeft(-1);
 
             row(table);
@@ -2430,35 +2423,6 @@ public class LStatements{
         @Override
         public LInstruction build(LAssembler builder){
             return new PlaySoundI(positional, builder.var(id), builder.var(volume), builder.var(pitch), builder.var(pan), builder.var(x), builder.var(y), builder.var(limit));
-        }
-
-        @Override
-        public LCategory category(){
-            return LCategory.world;
-        }
-    }
-
-    @RegisterStatement("playmusic")
-    public static class PlayMusicStatement extends LStatement{
-        public String name = "\"game1\"", interrupt = "true";
-
-        @Override
-        public void build(Table table){
-            float width = LCanvas.useRows() ? 100f : 190f;
-
-            fields(table, "music", name, str -> name = str).width(width);
-
-            fields(table, "interrupt", interrupt, str -> interrupt = str).width(width);
-        }
-
-        @Override
-        public boolean privileged(){
-            return true;
-        }
-
-        @Override
-        public LInstruction build(LAssembler builder){
-            return new PlayMusicI(builder.var(name), builder.var(interrupt));
         }
 
         @Override

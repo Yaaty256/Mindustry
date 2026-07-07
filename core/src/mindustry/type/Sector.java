@@ -21,7 +21,6 @@ import static mindustry.Vars.*;
 
 /** A small section of a planet. */
 public class Sector{
-    static final String[] threats = {"low", "medium", "high", "extreme", "eradication"};
     private static final Seq<Sector> tmpSeq1 = new Seq<>();
 
     public final SectorRect rect;
@@ -80,8 +79,9 @@ public class Sector{
     public String displayThreat(){
         float step = 0.25f;
         String color = Tmp.c1.set(Color.white).lerp(Color.scarlet, Mathf.round(threat, step)).toString();
-        //TODO: rework this in the future
-        return "[#" + color + "]" + Core.bundle.get("threat." + (preset != null && Mathf.equal(preset.difficulty, SectorDifficulty.unreasonable) ? "unreasonable" : threats[Math.min((int)(threat / step), threats.length - 1)]));
+        String[] threats = {"low", "medium", "high", "extreme", "eradication"};
+        int index = Math.min((int)(threat / step), threats.length - 1);
+        return "[#" + color + "]" + Core.bundle.get("threat." + threats[index]);
     }
 
     /** @return whether this sector can be landed on at all.

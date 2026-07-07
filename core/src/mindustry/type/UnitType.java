@@ -528,7 +528,6 @@ public class UnitType extends UnlockableContent implements Senseable{
         // Try to immediately resolve the Unit constructor based on EntityMapping entry, if it is set.
         // This is the default Vanilla behavior - it won't work properly for mods (see comment in `init()`)!
         constructor = EntityMapping.map(this.name);
-        if(constructor == null) constructor = UnitEntity::create;
         selectionSize = 30f;
     }
 
@@ -1232,7 +1231,7 @@ public class UnitType extends UnlockableContent implements Senseable{
         for(var region : toOutline){
             if(region instanceof AtlasRegion atlas && !Core.atlas.has(atlas.name + "-outline")){
                 String regionName = atlas.name;
-                Pixmap outlined = Pixmaps.outline(packer.get(region), outlineColor, outlineRadius);
+                Pixmap outlined = Pixmaps.outline(Core.atlas.getPixmap(region), outlineColor, outlineRadius);
 
                 Drawf.checkBleed(outlined);
 
@@ -1268,7 +1267,7 @@ public class UnitType extends UnlockableContent implements Senseable{
         }
 
         if(sample instanceof Tankc){
-            PixmapRegion pix = packer.get(treadRegion);
+            PixmapRegion pix = Core.atlas.getPixmap(treadRegion);
 
             for(int r = 0; r < treadRects.length; r++){
                 Rect treadRect = treadRects[r];
@@ -1436,7 +1435,6 @@ public class UnitType extends UnlockableContent implements Senseable{
             case armor -> armor;
             case range -> World.conv(maxRange);
             case size -> hitSize / tilesize;
-            case flying -> flying ? 1f : 0f;
             case itemCapacity -> itemCapacity;
             case speed -> speed * 60f / tilesize;
             case payloadCapacity -> sample instanceof Payloadc ? payloadCapacity / tilePayload : 0f;

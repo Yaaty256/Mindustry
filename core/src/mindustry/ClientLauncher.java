@@ -105,12 +105,20 @@ public abstract class ClientLauncher extends ApplicationCore implements Platform
             @Override
             public Sound loadSync(AssetManager manager, String fileName, Fi file, SoundParameter parameter){
                 if(parameter != null && parameter.sound != null){
-                    parameter.sound.loadLazy(file);
+                    mainExecutor.submit(() -> parameter.sound.load(file));
 
                     return parameter.sound;
                 }else{
                     Sound sound = new Sound();
-                    sound.loadLazy(file);
+
+                    mainExecutor.submit(() -> {
+                        try{
+                            sound.load(file);
+                        }catch(Throwable t){
+                            Log.err("Error loading sound: " + file, t);
+                        }
+                    });
+
                     return sound;
                 }
             }
@@ -269,16 +277,6 @@ public abstract class ClientLauncher extends ApplicationCore implements Platform
         }
 
         PerfCounter.update.end();
-
-        long rawUpdate = PerfCounter.update.latestValueNs();
-        for(var other : PerfCounter.displayedCounters){
-            if(other != PerfCounter.other) rawUpdate -= other.latestValueNs();
-        }
-        PerfCounter.other.add(rawUpdate);
-
-        for(var counter : PerfCounter.all){
-            counter.checkUpdate();
-        }
     }
 
     @Override

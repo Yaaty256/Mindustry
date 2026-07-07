@@ -3,7 +3,6 @@ package mindustry.editor;
 import arc.scene.ui.*;
 import arc.struct.*;
 import mindustry.*;
-import mindustry.editor.data.*;
 import mindustry.game.*;
 import mindustry.gen.*;
 import mindustry.io.*;
@@ -21,7 +20,7 @@ public class MapInfoDialog extends BaseDialog{
     private MapObjectivesDialog objectives = new MapObjectivesDialog();
     private MapLocalesDialog locales = new MapLocalesDialog();
     private MapProcessorsDialog processors = new MapProcessorsDialog();
-    private MapAssetsDialog patches = new MapAssetsDialog();
+    private MapPatchesDialog patches = new MapPatchesDialog();
 
     public MapInfoDialog(){
         super("@editor.mapinfo");
@@ -118,10 +117,13 @@ public class MapInfoDialog extends BaseDialog{
 
                 r.row();
 
-                r.button("@asset.title", Icon.fileCode, style, () -> {
+                r.button("@editor.patches", Icon.file, style, () -> {
                     hide();
                     patches.show();
-                }).marginLeft(10f).colspan(2).width(460f).row();
+                }).marginLeft(10f);
+
+                //empty space
+                r.add().marginLeft(10f);
             }).colspan(2).center();
 
             name.change();
@@ -129,6 +131,6 @@ public class MapInfoDialog extends BaseDialog{
             author.change();
 
             t.margin(16f);
-        }).growX().scrollX(false);
+        });
     }
 }

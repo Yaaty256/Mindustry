@@ -74,7 +74,7 @@ public class Planets{
             ruleSetter = r -> {
                 r.waveTeam = Team.malis;
                 r.placeRangeCheck = false;
-                r.hideSpawns = false;
+                r.showSpawns = true;
                 r.fog = true;
                 r.staticFog = true;
                 r.lighting = false;
@@ -82,7 +82,7 @@ public class Planets{
                 r.onlyDepositCore = true;
             };
             campaignRuleDefaults.fog = true;
-            campaignRuleDefaults.hideSpawns = false;
+            campaignRuleDefaults.showSpawns = true;
             campaignRuleDefaults.rtsAI = true;
 
             unlockedOnLand.add(Blocks.coreBastion);
@@ -141,8 +141,7 @@ public class Planets{
             ruleSetter = r -> {
                 r.waveTeam = Team.crux;
                 r.placeRangeCheck = false;
-                r.hideSpawns = true;
-                r.derelictRepair = true;
+                r.showSpawns = false;
                 r.coreDestroyClear = true;
             };
             showRtsAIRule = true;

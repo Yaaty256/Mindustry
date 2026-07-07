@@ -94,7 +94,7 @@ public class MapEditorDialog extends Dialog implements Disposable{
             t.button("@editor.import", Icon.download, () -> createDialog("@editor.import",
                 "@editor.importmap", "@editor.importmap.description", Icon.download, (Runnable)loadDialog::show,
                 "@editor.importfile", "@editor.importfile.description", Icon.file, (Runnable)() ->
-                FileChooser.open(mapExtension).submit(file -> ui.loadAnd(() -> {
+                platform.showFileChooser(true, mapExtension, file -> ui.loadAnd(() -> {
                     maps.tryCatchMapError(() -> {
                         if(MapIO.isImage(file)){
                             ui.showInfo("@editor.errorimage");
@@ -105,7 +105,7 @@ public class MapEditorDialog extends Dialog implements Disposable{
                 })),
 
                 "@editor.importimage", "@editor.importimage.description", Icon.fileImage, (Runnable)() ->
-                FileChooser.open("png").submit(file ->
+                platform.showFileChooser(true, "png", file ->
                 ui.loadAnd(() -> {
                     try{
                         Pixmap pixmap = new Pixmap(file);
@@ -124,9 +124,9 @@ public class MapEditorDialog extends Dialog implements Disposable{
 
             t.button("@editor.export", Icon.upload, () -> createDialog("@editor.export",
             "@editor.exportfile", "@editor.exportfile.description", Icon.file,
-                (Runnable)() -> FileChooser.export(editor.tags.get("name", "unknown"), mapExtension, file -> MapIO.writeMap(file, editor.createMap(file))),
+                (Runnable)() -> platform.export(editor.tags.get("name", "unknown"), mapExtension, file -> MapIO.writeMap(file, editor.createMap(file))),
             "@editor.exportimage", "@editor.exportimage.description", Icon.fileImage,
-                (Runnable)() -> FileChooser.export(editor.tags.get("name", "unknown"), "png", file -> {
+                (Runnable)() -> platform.export(editor.tags.get("name", "unknown"), "png", file -> {
                     Pixmap out = MapIO.writeImage(editor.tiles());
                     file.writePng(out);
                     out.dispose();
@@ -350,6 +350,7 @@ public class MapEditorDialog extends Dialog implements Disposable{
                 }
             }
 
+            Groups.build.clear();
             Groups.weather.clear();
             logic.play();
 
@@ -428,7 +429,7 @@ public class MapEditorDialog extends Dialog implements Disposable{
                     editor.tags.put("steamid", map.tags.get("steamid"));
                     workshop = true;
                 }
-                returned = maps.saveMap(editor.tags, false);
+                returned = maps.saveMap(editor.tags);
                 if(workshop){
                     returned.workshop = workshop;
                 }
@@ -787,11 +788,7 @@ public class MapEditorDialog extends Dialog implements Disposable{
     }
 
     private void tryExit(){
-        ui.showConfirm("@confirm", "@editor.unsaved", () -> {
-            //clears data patches
-            logic.reset();
-            hide();
-        });
+        ui.showConfirm("@confirm", "@editor.unsaved", this::hide);
     }
 
     private void addBlockSelection(Table cont){
@@ -831,10 +828,6 @@ public class MapEditorDialog extends Dialog implements Disposable{
         }).growX().row();
         cont.add(pane).expandY().growX().top().left();
 
-        rebuildBlockSelection("");
-    }
-
-    public void rebuildBlockSelection(){
         rebuildBlockSelection("");
     }
 

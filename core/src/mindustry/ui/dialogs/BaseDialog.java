@@ -1,7 +1,6 @@
 package mindustry.ui.dialogs;
 
 import arc.*;
-import arc.graphics.*;
 import arc.scene.ui.*;
 import arc.util.*;
 import mindustry.core.GameState.*;
@@ -15,14 +14,13 @@ public class BaseDialog extends Dialog{
     protected boolean wasPaused;
     /** If true, this dialog will pause the game while open. */
     protected boolean shouldPause;
-    protected Image titleImage;
 
     public BaseDialog(String title, DialogStyle style){
         super(title, style);
         setFillParent(true);
         this.title.setAlignment(Align.center);
         titleTable.row();
-        titleImage = titleTable.image(Tex.whiteui, Pal.accent).growX().height(3f).pad(4f).get();
+        titleTable.image(Tex.whiteui, Pal.accent).growX().height(3f).pad(4f);
 
         hidden(() -> {
             if(shouldPause && state.isGame() && !net.active() && !wasPaused){
@@ -41,11 +39,6 @@ public class BaseDialog extends Dialog{
 
     public BaseDialog(String title){
         this(title, Core.scene.getStyle(DialogStyle.class));
-    }
-
-    public void setTitleColor(Color color){
-        titleImage.setColor(color);
-        title.setColor(color);
     }
 
     /** Places the buttons as an overlay on top of the content. Used when the content can be scrolled through.*/

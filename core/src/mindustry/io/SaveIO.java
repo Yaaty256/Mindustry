@@ -20,7 +20,7 @@ public class SaveIO{
     /** Save format header. */
     public static final byte[] header = {'M', 'S', 'A', 'V'};
     public static final IntMap<SaveVersion> versions = new IntMap<>();
-    public static final Seq<SaveVersion> versionArray = Seq.with(new Save1(), new Save2(), new Save3(), new Save4(), new Save5(), new Save6(), new Save7(), new Save8(), new Save9(), new Save10(), new Save11(), new Save12(), new Save13());
+    public static final Seq<SaveVersion> versionArray = Seq.with(new Save1(), new Save2(), new Save3(), new Save4(), new Save5(), new Save6(), new Save7(), new Save8(), new Save9(), new Save10(), new Save11());
 
     static{
         for(SaveVersion version : versionArray){
@@ -37,14 +37,10 @@ public class SaveIO{
     }
 
     public static void save(Fi file){
-        save(file, new SaveOptions());
-    }
-
-    public static void save(Fi file, SaveOptions options){
         boolean exists = file.exists();
         if(exists) file.moveTo(backupFileFor(file));
         try{
-            write(file, options);
+            write(file);
         }catch(Throwable e){
             if(exists) backupFileFor(file).moveTo(file);
             throw new RuntimeException(e);
@@ -115,22 +111,26 @@ public class SaveIO{
         return file.sibling(file.name() + "-backup." + file.extension());
     }
 
-    public static void write(Fi file, SaveOptions options){
-        write(new FastDeflaterOutputStream(file.write(false, bufferSize)), options);
+    public static void write(Fi file, StringMap tags){
+        write(new FastDeflaterOutputStream(file.write(false, bufferSize)), tags);
     }
 
     public static void write(Fi file){
-        write(file, new SaveOptions());
+        write(file, null);
     }
 
-    public static void write(OutputStream os, SaveOptions options){
+    public static void write(OutputStream os, StringMap tags){
         try(DataOutputStream stream = new DataOutputStream(os)){
             Events.fire(new SaveWriteEvent());
             SaveVersion ver = getVersion();
 
             stream.write(header);
             stream.writeInt(ver.version);
-            ver.write(stream, options);
+            if(tags == null){
+                ver.write(stream);
+            }else{
+                ver.write(stream, tags);
+            }
         }catch(Throwable e){
             throw new RuntimeException(e);
         }
@@ -169,7 +169,7 @@ public class SaveIO{
 
             if(ver == null) throw new IOException("Unknown save version: " + version + ". Are you trying to load a save from a newer version?");
 
-            ver.read(stream, counter, new SaveReadState(context));
+            ver.read(stream, counter, context);
             Events.fire(new SaveLoadEvent(context.isMap()));
         }catch(Throwable e){
             throw new SaveException(e);

@@ -37,8 +37,6 @@ public class DuctRouter extends Block{
         underBullets = true;
         priority = TargetPriority.transport;
         envEnabled = Env.space | Env.terrestrial | Env.underwater;
-        drawCached = true;
-        drawDynamic = false;
 
         config(Item.class, (DuctRouterBuild tile, Item item) -> tile.sortItem = item);
         configClear((DuctRouterBuild tile) -> tile.sortItem = null);
@@ -130,7 +128,6 @@ public class DuctRouter extends Block{
             super.configured(player, value);
 
             if(!headless){
-                recache();
                 renderer.minimap.update(tile);
             }
         }

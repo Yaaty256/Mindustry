@@ -127,9 +127,11 @@ public class BeamDrill extends Block{
         stats.add(Stat.drillSpeed, 60f / drillTime * size, StatUnit.itemsSecond);
 
         if(optionalBoostIntensity != 1 && findConsumer(f -> f instanceof ConsumeLiquidBase && f.booster) instanceof ConsumeLiquidBase consBase){
-            stats.replace(Stat.booster,
+            stats.remove(Stat.booster);
+            stats.add(Stat.booster,
                 StatValues.speedBoosters("{0}" + StatUnit.timesSpeed.localized(),
-                consBase.amount, optionalBoostIntensity, false, consBase::consumes)
+                consBase.amount, optionalBoostIntensity, false,
+                l -> (consumesLiquid(l) && (findConsumer(f -> f instanceof ConsumeLiquid).booster || ((ConsumeLiquid)findConsumer(f -> f instanceof ConsumeLiquid)).liquid != l)))
             );
         }
     }
@@ -324,24 +326,21 @@ public class BeamDrill extends Block{
                     Draw.color();
                     Draw.mixcol();
 
-                    if(Lod.l2){
-                        Draw.z(Layer.effect);
-                        Lines.stroke(warmup);
-                        rand.setState(i, id);
-                        Color col = drop.color;
-                        Color spark = Tmp.c3.set(sparkColor).lerp(boostHeatColor, boostWarmup);
-                        for(int j = 0; j < sparks; j++){
-                            float fin = (Time.time / sparkLife + rand.random(sparkRecurrence + 1f)) % sparkRecurrence;
-                            float or = rand.range(2f);
-                            Tmp.v1.set(sparkRange * fin, 0).rotate(rotdeg() + rand.range(sparkSpread));
+                    Draw.z(Layer.effect);
+                    Lines.stroke(warmup);
+                    rand.setState(i, id);
+                    Color col = drop.color;
+                    Color spark = Tmp.c3.set(sparkColor).lerp(boostHeatColor, boostWarmup);
+                    for(int j = 0; j < sparks; j++){
+                        float fin = (Time.time / sparkLife + rand.random(sparkRecurrence + 1f)) % sparkRecurrence;
+                        float or = rand.range(2f);
+                        Tmp.v1.set(sparkRange * fin, 0).rotate(rotdeg() + rand.range(sparkSpread));
 
-                            Color result = Tmp.c1.set(spark).lerp(col, fin);
-                            Draw.color(result.r, result.g, result.b, result.a * Lod.alpha2);
-                            float px = Tmp.v1.x, py = Tmp.v1.y;
-                            if(fin <= 1f) Lines.lineAngle(lx + px + or * ddx, ly + py + or * ddy, Angles.angle(px, py), Mathf.slope(fin) * sparkSize);
-                        }
-                        Draw.reset();
+                        Draw.color(spark, col, fin);
+                        float px = Tmp.v1.x, py = Tmp.v1.y;
+                        if(fin <= 1f) Lines.lineAngle(lx + px + or * ddx, ly + py + or * ddy, Angles.angle(px, py), Mathf.slope(fin) * sparkSize);
                     }
+                    Draw.reset();
                 }
             }
 

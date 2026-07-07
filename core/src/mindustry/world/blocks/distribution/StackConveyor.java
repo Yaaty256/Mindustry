@@ -53,8 +53,6 @@ public class StackConveyor extends Block implements Autotiler{
         conveyorPlacement = true;
         underBullets = true;
         priority = TargetPriority.transport;
-        drawCached = true;
-        buildingCacheLayer = BuildingCacheLayer.under;
 
         ambientSound = Sounds.loopConveyor;
         ambientSoundVolume = 0.004f;
@@ -121,7 +119,9 @@ public class StackConveyor extends Block implements Autotiler{
         boolean proxUpdating = false;
 
         @Override
-        public void drawCached(){
+        public void draw(){
+            Draw.z(Layer.block - 0.2f);
+
             Draw.rect(regions[state], x, y, rotdeg());
 
             for(int i = 0; i < 4; i++){
@@ -145,14 +145,12 @@ public class StackConveyor extends Block implements Autotiler{
                     Draw.rect(sliced(regions[0], SliceMode.top), x + Geometry.d4x(rotation) * tilesize*0.75f, y + Geometry.d4y(rotation) * tilesize*0.75f, rotation * 90f);
                 }
             }
-        }
 
-        @Override
-        public void draw(){
             Draw.z(Layer.block - 0.1f);
 
             Tile from = world.tile(link);
 
+            //TODO do not draw for certain configurations?
             if(glowRegion.found() && power != null && power.status > 0f){
                 Draw.z(Layer.blockAdditive);
                 Draw.color(glowColor, glowAlpha * power.status);
@@ -187,6 +185,7 @@ public class StackConveyor extends Block implements Autotiler{
 
             //item
             float size = itemSize * Mathf.lerp(Math.min((float)items.total() / itemCapacity, 1), 1f, 0.4f);
+            Drawf.shadow(Tmp.v1.x, Tmp.v1.y, size * 1.2f);
             Draw.rect(lastItem.fullIcon, Tmp.v1.x, Tmp.v1.y, size, size, 0);
         }
 
@@ -216,7 +215,6 @@ public class StackConveyor extends Block implements Autotiler{
         @Override
         public void onProximityUpdate(){
             super.onProximityUpdate();
-            recache();
 
             int lastState = state;
 

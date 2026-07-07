@@ -34,7 +34,6 @@ public class PowerNode extends PowerBlock{
     public int maxNodes = 3;
     public boolean autolink = true, drawRange = true, sameBlockConnection = false;
     public float laserScale = 0.25f;
-    public boolean useLod = true;
     public float powerLayer = Layer.power;
     public Color laserColor1 = Color.white;
     public Color laserColor2 = Pal.powerLight;
@@ -52,7 +51,6 @@ public class PowerNode extends PowerBlock{
         envEnabled |= Env.space;
         destructible = true;
         delayLandingConfig = true;
-        drawCached = true;
 
         //nodes do not even need to update
         update = false;
@@ -72,15 +70,11 @@ public class PowerNode extends PowerBlock{
                 //reflow from this point, covering all tiles on this side
                 newgraph.reflow(entity);
 
-                newgraph.update();
-
                 if(valid && other.power.graph != newgraph){
                     //create new graph for other end
                     PowerGraph og = new PowerGraph();
                     //reflow from other end
                     og.reflow(other);
-
-                    og.update();
                 }
             }else if(linkValid(entity, other) && valid && power.links.size < maxNodes){
 
@@ -181,7 +175,7 @@ public class PowerNode extends PowerBlock{
     }
 
     protected void setupColor(float satisfaction){
-        Draw.color(Tmp.c1.set(laserColor1).lerp(laserColor2, (1f - satisfaction) * 0.86f + Mathf.absin(3f, 0.1f)).a(Renderer.laserOpacity * (useLod ? Lod.alpha2 : 1f)));
+        Draw.color(Tmp.c1.set(laserColor1).lerp(laserColor2, (1f - satisfaction) * 0.86f + Mathf.absin(3f, 0.1f)).a(Renderer.laserOpacity));
     }
 
     public void drawLaser(float x1, float y1, float x2, float y2, int size1, int size2){
@@ -193,7 +187,7 @@ public class PowerNode extends PowerBlock{
             vx = Mathf.cosDeg(angle1), vy = Mathf.sinDeg(angle1),
             len1 = size1 * tilesize / 2f - 1.5f, len2 = size2 * tilesize / 2f - 1.5f;
 
-        Drawf.laser(laser, laserEnd, laserEnd, x1 + vx*len1, y1 + vy*len1, x2 - vx*len2, y2 - vy*len2, laserScale, light, useLod);
+        Drawf.laser(laser, laserEnd, laserEnd, x1 + vx*len1, y1 + vy*len1, x2 - vx*len2, y2 - vy*len2, laserScale, light);
     }
 
     protected boolean overlaps(float srcx, float srcy, Tile other, Block otherBlock, float range){
@@ -488,12 +482,9 @@ public class PowerNode extends PowerBlock{
         }
 
         @Override
-        public void drawCached(){
-            super.draw();
-        }
-
-        @Override
         public void draw(){
+            super.draw();
+
             if(Mathf.zero(Renderer.laserOpacity) || isPayload() || team == Team.derelict) return;
 
             Draw.z(powerLayer);

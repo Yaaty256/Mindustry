@@ -18,7 +18,6 @@ public class StackRouter extends DuctRouter{
     public StackRouter(String name){
         super(name);
         itemCapacity = 10;
-        drawDynamic = true;
     }
 
     public class StackRouterBuild extends DuctRouterBuild{
@@ -70,12 +69,9 @@ public class StackRouter extends DuctRouter{
         }
 
         @Override
-        public void drawCached(){
-            super.draw();
-        }
-
-        @Override
         public void draw(){
+            super.draw();
+
             if(glowRegion.found() && power != null && power.status > 0){
                 Draw.z(Layer.blockAdditive);
                 Draw.color(glowColor, glowAlpha * power.status);

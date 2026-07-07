@@ -1,6 +1,5 @@
 package mindustry.graphics;
 
-import arc.*;
 import arc.graphics.*;
 import arc.graphics.Texture.*;
 import arc.graphics.g2d.*;
@@ -10,31 +9,17 @@ import arc.util.Log.*;
 import mindustry.*;
 
 public class MultiPacker implements Disposable{
-    private PixmapPacker[] packers;
+    private PixmapPacker[] packers = new PixmapPacker[PageType.all.length];
     private ObjectSet<String> outlined = new ObjectSet<>();
 
     public MultiPacker(){
-        this(true);
-    }
-
-    public MultiPacker(boolean initialize){
-        if(initialize){
-            packers = new PixmapPacker[PageType.all.length];
-            for(int i = 0; i < packers.length; i++){
-                packers[i] = new PixmapPacker(Math.min(Vars.maxTextureSize, PageType.all[i].width), Math.min(Vars.maxTextureSize, PageType.all[i].height), 2, true);
-            }
+        for(int i = 0; i < packers.length; i++){
+            packers[i] = new PixmapPacker(Math.min(Vars.maxTextureSize, PageType.all[i].width), Math.min(Vars.maxTextureSize, PageType.all[i].height), 2, true);
         }
     }
 
-    public PixmapRegion get(TextureRegion region){
-        return Core.atlas.getPixmap(region);
-    }
-
-    public PixmapRegion get(String region){
-        return Core.atlas.getPixmap(region);
-    }
-
-    public @Nullable PixmapRegion getPacked(String name){
+    @Nullable
+    public PixmapRegion get(String name){
         for(var packer : packers){
             var region = packer.getRegion(name);
             if(region != null){
@@ -74,6 +59,10 @@ public class MultiPacker implements Disposable{
         return outlined.contains(name);
     }
 
+    public PixmapPacker getPacker(PageType type){
+        return packers[type.ordinal()];
+    }
+
     public boolean has(String name){
         for(var page : PageType.all){
             if(packers[page.ordinal()].getRect(name) != null){
@@ -108,7 +97,6 @@ public class MultiPacker implements Disposable{
 
     @Override
     public void dispose(){
-        if(packers == null) return;
         for(int i = 0; i < PageType.all.length; i ++){
             var packer = packers[i];
             //the UI packer's image is later used when merging with the font, don't dispose it

@@ -5,22 +5,20 @@ import android.app.*;
 import android.content.*;
 import android.content.pm.*;
 import android.net.*;
-import android.os.*;
 import android.os.Build.*;
+import android.os.*;
 import android.telephony.*;
 import arc.*;
 import arc.backend.android.*;
 import arc.files.*;
+import arc.func.*;
 import arc.scene.ui.layout.*;
-import arc.struct.*;
 import arc.util.*;
 import dalvik.system.*;
 import mindustry.*;
 import mindustry.game.Saves.*;
 import mindustry.io.*;
 import mindustry.net.*;
-import mindustry.ui.*;
-import mindustry.ui.FileChooser.*;
 import mindustry.ui.dialogs.*;
 
 import java.io.*;
@@ -32,7 +30,7 @@ import static mindustry.Vars.*;
 public class AndroidLauncher extends AndroidApplication{
     public static final int PERMISSION_REQUEST_CODE = 1;
     boolean doubleScaleTablets = true;
-    FileChooserDialog chooser;
+    FileChooser chooser;
     Runnable permCallback;
 
     @Override
@@ -99,7 +97,8 @@ public class AndroidLauncher extends AndroidApplication{
                         }
                     };
                 }catch(SecurityException e){
-                    //`setReadOnly` to jar file in `/sdcard/Android/data/...` does not work on some Android 14 devices, but in `/data/...`, it does
+                    //`setReadOnly` to jar file in `/sdcard/Android/data/...` does not work on some Android 14 device
+                    //But in `/data/...` it works
 
                     if(Build.VERSION.SDK_INT < VERSION_CODES.O_MR1){
                         throw e;
@@ -128,34 +127,27 @@ public class AndroidLauncher extends AndroidApplication{
             }
 
             @Override
-            public void showFileChooser(FileChooserParams params){
+            public void showFileChooser(boolean open, String title, String extension, Cons<Fi> cons){
+                showFileChooser(open, title, cons, extension);
+            }
+
+            void showFileChooser(boolean open, String title, Cons<Fi> cons, String... extensions){
                 try{
-                    String extension = params.extensions[0];
+                    String extension = extensions[0];
 
                     if(VERSION.SDK_INT >= VERSION_CODES.Q){
-                        Intent intent = new Intent(params.open ? Intent.ACTION_OPEN_DOCUMENT : Intent.ACTION_CREATE_DOCUMENT);
+                        Intent intent = new Intent(open ? Intent.ACTION_OPEN_DOCUMENT : Intent.ACTION_CREATE_DOCUMENT);
                         intent.addCategory(Intent.CATEGORY_OPENABLE);
-                        intent.setType(extension.equals("zip") && !params.open && params.extensions.length == 1 ? "application/zip" : "*/*");
-                        intent.putExtra(Intent.EXTRA_TITLE, params.fileName);
-                        if(params.allowMultiple){
-                            intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
-                        }
+                        intent.setType(extension.equals("zip") && !open && extensions.length == 1 ? "application/zip" : "*/*");
+                        intent.putExtra(Intent.EXTRA_TITLE, "export." + extension);
 
                         addResultListener(i -> startActivityForResult(intent, i), (code, in) -> {
                             if(code == Activity.RESULT_OK && in != null && in.getData() != null){
-                                Uri[] uris;
-                                if(in.getClipData() != null){
-                                    uris = new Uri[in.getClipData().getItemCount()];
-                                    for(int i = 0; i < uris.length; i++){
-                                        uris[i] = in.getClipData().getItemAt(i).getUri();
-                                    }
-                                }else{
-                                    uris = new Uri[]{in.getData()};
-                                }
+                                Uri uri = in.getData();
 
-                                if(uris.length == 0 || uris[0].getPath().contains("(invalid)")) return;
+                                if(uri.getPath().contains("(invalid)")) return;
 
-                                Fi[] files = Seq.with(uris).map(uri -> new Fi(uri.getPath()){
+                                Core.app.post(() -> Core.app.post(() -> cons.get(new Fi(uri.getPath()){
                                     @Override
                                     public InputStream read(){
                                         try{
@@ -173,23 +165,18 @@ public class AndroidLauncher extends AndroidApplication{
                                             throw new ArcRuntimeException(e);
                                         }
                                     }
-
-                                    @Override
-                                    public Writer writer(boolean append, String charset){
-                                        try{
-                                            return new OutputStreamWriter(write(append), charset);
-                                        }catch(IOException ex){
-                                            throw new ArcRuntimeException(ex);
-                                        }
-                                    }
-                                }).toArray(Fi.class);
-
-                                Core.app.post(() -> Core.app.post(() -> params.handleChooseResult(files)));
+                                })));
                             }
                         });
                     }else if(VERSION.SDK_INT >= VERSION_CODES.M && !(checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED &&
                     checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED)){
-                        chooser = FileChooser.createFallbackFileChooser(params);
+                        chooser = new FileChooser(title, file -> Structs.contains(extensions, file.extension().toLowerCase()), open, file -> {
+                            if(!open){
+                                cons.get(file.parent().child(file.nameWithoutExtension() + "." + extension));
+                            }else{
+                                cons.get(file);
+                            }
+                        });
 
                         ArrayList<String> perms = new ArrayList<>();
                         if(checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED){
@@ -200,11 +187,20 @@ public class AndroidLauncher extends AndroidApplication{
                         }
                         requestPermissions(perms.toArray(new String[0]), PERMISSION_REQUEST_CODE);
                     }else{
-                        FileChooser.showFallbackFileChooser(params);
+                        if(open){
+                            new FileChooser(title, file -> Structs.contains(extensions, file.extension().toLowerCase()), true, cons).show();
+                        }else{
+                            super.showFileChooser(open, "@open", extension, cons);
+                        }
                     }
                 }catch(Throwable error){
                     Core.app.post(() -> Vars.ui.showException(error));
                 }
+            }
+
+            @Override
+            public void showMultiFileChooser(Cons<Fi> cons, String... extensions){
+                showFileChooser(true, "@open", cons, extensions);
             }
 
             @Override
@@ -238,6 +234,7 @@ public class AndroidLauncher extends AndroidApplication{
             }catch(Throwable t){
                 Log.err("Failed to delete cached folder", t);
             }
+
 
             //move to internal storage if there's no file indicating that it moved
             if(!Core.files.local("files_moved").exists()){

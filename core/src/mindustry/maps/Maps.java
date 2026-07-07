@@ -189,15 +189,11 @@ public class Maps{
         load();
     }
 
-    public Map saveMap(ObjectMap<String, String> baseTags){
-        return saveMap(baseTags, true);
-    }
-
     /**
      * Save a custom map to the directory. This updates all values and stored data necessary.
      * The tags are copied to prevent mutation later.
      */
-    public Map saveMap(ObjectMap<String, String> baseTags, boolean embedAssets){
+    public Map saveMap(ObjectMap<String, String> baseTags){
 
         try{
             StringMap tags = new StringMap(baseTags);
@@ -223,7 +219,7 @@ public class Maps{
             //create map, write it, etc etc etc
             Map map = new Map(file, world.width(), world.height(), tags, true);
             fogControl.resetFog();
-            MapIO.writeMap(file, map, embedAssets);
+            MapIO.writeMap(file, map);
 
             if(!headless){
                 //reset attributes

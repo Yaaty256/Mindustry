@@ -107,11 +107,8 @@ public class ShockwaveTower extends Block{
 
         @Override
         public double sense(LAccess sensor) {
-            return switch(sensor){
-                case progress -> reloadCounter / reload;
-                case heat -> heat;
-                default -> super.sense(sensor);
-            };
+            if(sensor == LAccess.progress) return reloadCounter / reload;
+            return super.sense(sensor);
         }
 
 

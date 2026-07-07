@@ -62,7 +62,6 @@ public enum LAccess{
     team,
     type,
     flag,
-    flying,
     controlled,
     controller,
     name,

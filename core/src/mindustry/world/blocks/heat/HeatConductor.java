@@ -8,7 +8,6 @@ import mindustry.*;
 import mindustry.entities.units.*;
 import mindustry.gen.*;
 import mindustry.graphics.*;
-import mindustry.logic.*;
 import mindustry.ui.*;
 import mindustry.world.*;
 import mindustry.world.draw.*;
@@ -87,12 +86,6 @@ public class HeatConductor extends Block{
 
             lastHeatUpdate = Vars.state.updateId;
             heat = calculateHeat(sideHeat, cameFrom);
-        }
-
-        @Override
-        public double sense(LAccess sensor){
-            if(sensor == LAccess.heat) return heat;
-            return super.sense(sensor);
         }
 
         @Override

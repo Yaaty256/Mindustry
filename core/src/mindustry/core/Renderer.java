@@ -159,7 +159,7 @@ public class Renderer implements ApplicationListener{
             baseTarget = Mathf.lerp(minZoom, maxZoom, control.input.logicCutsceneZoom);
         }
 
-        float dest = Mathf.clamp(baseTarget, minScale(), maxScale());
+        float dest = Mathf.clamp(Mathf.round(baseTarget, 0.5f), minScale(), maxScale());
         camerascale = Mathf.lerpDelta(camerascale, dest, 0.1f);
         if(Mathf.equal(camerascale, dest, 0.001f)) camerascale = dest;
         unitLaserOpacity = settings.getInt("unitlaseropacity") / 100f;
@@ -197,8 +197,6 @@ public class Renderer implements ApplicationListener{
 
         camera.width = graphics.getWidth() / camerascale;
         camera.height = graphics.getHeight() / camerascale;
-
-        Lod.update();
 
         if(state.isMenu()){
             landTime = 0f;
@@ -418,7 +416,7 @@ public class Renderer implements ApplicationListener{
 
         Groups.draw.draw(Drawc::draw);
 
-        if(settings.getBool("drawhitboxes")){
+        if(drawDebugHitboxes){
             DebugCollisionRenderer.draw();
         }
 
@@ -519,11 +517,13 @@ public class Renderer implements ApplicationListener{
     }
 
     public float minScale(){
-        return control.input.logicCutscene ? Scl.scl(minZoom) : Scl.scl(minZoomInGame);
+        if(control.input.logicCutscene) return Scl.scl(minZoom);
+        return Scl.scl(minZoomInGame);
     }
 
     public float maxScale(){
-        return (float)(control.input.logicCutscene ? Mathf.round(Scl.scl(maxZoom)) : Mathf.round(Scl.scl(maxZoomInGame)));
+        if(control.input.logicCutscene) return Mathf.round(Scl.scl(maxZoom));
+        return Mathf.round(Scl.scl(maxZoomInGame));
     }
 
     public float getScale(){
@@ -580,47 +580,38 @@ public class Renderer implements ApplicationListener{
             return;
         }
 
-        try{
-            Lod.disable = true;
-            FrameBuffer buffer = new FrameBuffer(w, h);
+        FrameBuffer buffer = new FrameBuffer(w, h);
 
-            drawWeather = false;
-            float vpW = camera.width, vpH = camera.height, px = camera.position.x, py = camera.position.y;
-            disableUI = true;
-            camera.width = w;
-            camera.height = h;
-            camera.position.x = w / 2f + tilesize / 2f;
-            camera.position.y = h / 2f + tilesize / 2f;
-            buffer.begin(Color.clear);
-            draw();
-            Draw.flush();
-            byte[] lines = ScreenUtils.getFrameBufferPixels(0, 0, w, h, true);
-            buffer.end();
-            disableUI = false;
-            camera.width = vpW;
-            camera.height = vpH;
-            camera.position.set(px, py);
-            drawWeather = true;
-            buffer.dispose();
+        drawWeather = false;
+        float vpW = camera.width, vpH = camera.height, px = camera.position.x, py = camera.position.y;
+        disableUI = true;
+        camera.width = w;
+        camera.height = h;
+        camera.position.x = w / 2f + tilesize / 2f;
+        camera.position.y = h / 2f + tilesize / 2f;
+        buffer.begin(Color.clear);
+        draw();
+        Draw.flush();
+        byte[] lines = ScreenUtils.getFrameBufferPixels(0, 0, w, h, true);
+        buffer.end();
+        disableUI = false;
+        camera.width = vpW;
+        camera.height = vpH;
+        camera.position.set(px, py);
+        drawWeather = true;
+        buffer.dispose();
 
-            mainExecutor.submit(() -> {
-                for(int i = 0; i < lines.length; i += 4){
-                    lines[i + 3] = (byte)255;
-                }
-                Pixmap fullPixmap = new Pixmap(w, h);
-                Buffers.copy(lines, 0, fullPixmap.pixels, lines.length);
-                Fi file = screenshotDirectory.child("screenshot-" + Time.millis() + ".png");
-                PixmapIO.writePng(file, fullPixmap);
-                fullPixmap.dispose();
-                app.post(() -> ui.showInfoFade(bundle.format("screenshot", file.toString())));
-            });
-        }catch(Throwable e){
-            Log.err(e);
-            Vars.ui.showException("@screenshot.error", e);
-        }finally{
-            Lod.disable = false;
-        }
-
+        Threads.thread(() -> {
+            for(int i = 0; i < lines.length; i += 4){
+                lines[i + 3] = (byte)255;
+            }
+            Pixmap fullPixmap = new Pixmap(w, h);
+            Buffers.copy(lines, 0, fullPixmap.pixels, lines.length);
+            Fi file = screenshotDirectory.child("screenshot-" + Time.millis() + ".png");
+            PixmapIO.writePng(file, fullPixmap);
+            fullPixmap.dispose();
+            app.post(() -> ui.showInfoFade(bundle.format("screenshot", file.toString())));
+        });
     }
 
     public static class EnvRenderer{
